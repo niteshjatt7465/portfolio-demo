@@ -7,76 +7,66 @@ export async function submitContact(req, res, next) {
   const { name, email, subject, message } = req.sanitizedContact
 
   console.log('[contact] ─────────────────────────────')
-  console.log('[contact] Request received')
-  console.log('[contact] From:', name, `<${email}>`)
+  console.log('[contact] NEW submission from:', name, `<${email}>`)
   console.log('[contact] Subject:', subject)
 
   try {
-    // 1. Save to MongoDB
-    if (mongoose.connection.readyState !== 1) {
-      console.error('[contact] MongoDB not connected')
-      return res.status(503).json({
-        success: false,
-        message: 'Database is temporarily unavailable. Please try again later.',
-      })
+    // 1. Save to MongoDB (non-blocking if fails)
+    let saved = null
+    if (mongoose.connection.readyState === 1) {
+      try {
+        saved = await ContactMessage.create({ name, email, subject, message })
+        console.log('[contact] MongoDB saved:', saved._id.toString())
+      } catch (dbErr) {
+        console.error('[contact] MongoDB save failed:', dbErr.message)
+      }
+    } else {
+      console.warn('[contact] MongoDB not connected — skipping save')
     }
 
-    const saved = await ContactMessage.create({ name, email, subject, message })
-    console.log('[contact] MongoDB saved — id:', saved._id.toString())
-
-    // 2. Send Gmail via Nodemailer
-    let emailOk = false
-    try {
-      await sendContactEmail({ name, email, subject, message })
-      emailOk = true
-    } catch (emailErr) {
-      console.error('[contact] Email failed:', emailErr.message)
-    }
-
-    // 3. Send Telegram
+    // 2. Telegram (required — instant phone notification)
     let telegramOk = false
     try {
       await sendTelegramNotification({ name, email, subject, message })
       telegramOk = true
     } catch (telegramErr) {
-      console.error('[contact] Telegram failed:', telegramErr.message)
+      console.error('[contact] Telegram FAILED:', telegramErr.message)
+    }
+
+    // 3. Gmail via Nodemailer
+    let emailOk = false
+    try {
+      await sendContactEmail({ name, email, subject, message })
+      emailOk = true
+    } catch (emailErr) {
+      console.error('[contact] Email FAILED:', emailErr.message)
     }
 
     const notifications = {
       email: emailOk,
       telegram: telegramOk,
-      database: true,
+      database: Boolean(saved),
     }
 
-    if (!emailOk && !telegramOk) {
-      console.error('[contact] All notifications failed')
+    if (!telegramOk) {
+      console.error('[contact] CRITICAL: Telegram not sent')
       return res.status(502).json({
         success: false,
         message:
-          'Message saved but notifications failed. Please email niteshsagar58@gmail.com directly.',
-        id: saved._id,
+          'Could not deliver your message. Please email niteshsagar58@gmail.com directly.',
         notifications,
       })
     }
 
-    if (!telegramOk || !emailOk) {
-      const failed = [!emailOk && 'email', !telegramOk && 'telegram'].filter(Boolean).join(' & ')
-      console.warn(`[contact] Partial success — failed: ${failed}`)
-      return res.status(201).json({
-        success: true,
-        message: `Message received! Some notifications (${failed}) may be delayed.`,
-        id: saved._id,
-        notifications,
-      })
-    }
-
-    console.log('[contact] All notifications sent successfully')
+    console.log('[contact] SUCCESS — telegram:', telegramOk, 'email:', emailOk, 'db:', Boolean(saved))
     console.log('[contact] ─────────────────────────────')
 
     return res.status(201).json({
       success: true,
-      message: 'Message sent successfully! I will get back to you soon.',
-      id: saved._id,
+      message: emailOk
+        ? 'Message sent successfully! I will get back to you soon.'
+        : 'Message received! I will get back to you soon.',
+      id: saved?._id,
       notifications,
     })
   } catch (err) {
