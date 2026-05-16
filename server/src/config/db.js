@@ -1,9 +1,9 @@
 import mongoose from 'mongoose'
 
 export async function connectDB() {
-  const uri = process.env.MONGO_URI
+  const uri = process.env.MONGO_URI || process.env.MONGO_URL
   if (!uri) {
-    console.warn('[db] MONGO_URI not set — contact messages will not be persisted')
+    console.warn('[db] MONGO_URI / MONGO_URL not set — contact messages will not be persisted')
     return false
   }
 
