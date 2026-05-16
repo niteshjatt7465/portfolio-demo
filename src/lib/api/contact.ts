@@ -14,9 +14,14 @@ export interface ContactApiResponse {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 45_000
+
 export async function submitContactForm(
   data: ContactFormData
 ): Promise<ContactApiResponse> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
   let response: Response
 
   try {
@@ -25,11 +30,19 @@ export async function submitContactForm(
       mode: 'cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      signal: controller.signal,
     })
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(
+        'Request took too long. Your message may have been sent — please check Telegram or try again.'
+      )
+    }
     throw new Error(
       'Cannot reach the server. Please check your internet and try again.'
     )
+  } finally {
+    clearTimeout(timeoutId)
   }
 
   let result: ContactApiResponse
@@ -45,12 +58,6 @@ export async function submitContactForm(
     const detail =
       result.errors?.map((e) => e.message).join('. ') || result.message
     throw new Error(detail || 'Failed to send message')
-  }
-
-  if (!result.notifications?.telegram) {
-    throw new Error(
-      'Notification failed. Please email niteshsagar58@gmail.com directly.'
-    )
   }
 
   return result

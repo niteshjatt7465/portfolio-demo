@@ -37,22 +37,21 @@ export function useContactForm() {
     async (e: React.FormEvent) => {
       e.preventDefault()
 
-      if (isSubmitting.current || loading) return
+      if (isSubmitting.current) return
+
       isSubmitting.current = true
       setLoading(true)
+      setSubmitted(false)
 
       try {
         const result = await submitContactForm(form)
 
-        if (!result.notifications?.telegram) {
-          throw new Error(
-            'Could not deliver your message. Please email niteshsagar58@gmail.com directly.'
-          )
-        }
-
         setSubmitted(true)
         setForm(INITIAL)
-        showToast('success', result.message)
+        showToast(
+          'success',
+          result.message || 'Message sent successfully! I will get back to you soon.'
+        )
       } catch (err) {
         const message =
           err instanceof Error
@@ -65,7 +64,7 @@ export function useContactForm() {
         isSubmitting.current = false
       }
     },
-    [form, loading, showToast]
+    [form, showToast]
   )
 
   const resetForm = useCallback(() => {

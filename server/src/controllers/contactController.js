@@ -2,16 +2,18 @@ import mongoose from 'mongoose'
 import { ContactMessage } from '../models/ContactMessage.js'
 import { sendContactEmail } from '../services/emailService.js'
 import { sendTelegramNotification } from '../services/telegramService.js'
+import { withTimeout } from '../utils/timeout.js'
+
+const TELEGRAM_TIMEOUT_MS = 15_000
+const EMAIL_TIMEOUT_MS = 12_000
 
 export async function submitContact(req, res, next) {
   const { name, email, subject, message } = req.sanitizedContact
 
   console.log('[contact] ─────────────────────────────')
   console.log('[contact] NEW submission from:', name, `<${email}>`)
-  console.log('[contact] Subject:', subject)
 
   try {
-    // 1. Save to MongoDB (non-blocking if fails)
     let saved = null
     if (mongoose.connection.readyState === 1) {
       try {
@@ -20,26 +22,22 @@ export async function submitContact(req, res, next) {
       } catch (dbErr) {
         console.error('[contact] MongoDB save failed:', dbErr.message)
       }
-    } else {
-      console.warn('[contact] MongoDB not connected — skipping save')
     }
 
-    // 2. Telegram (required — instant phone notification)
-    let telegramOk = false
-    try {
-      await sendTelegramNotification({ name, email, subject, message })
-      telegramOk = true
-    } catch (telegramErr) {
-      console.error('[contact] Telegram FAILED:', telegramErr.message)
-    }
+    // Telegram + Email in parallel (don't block UI on slow Gmail SMTP)
+    const [telegramResult, emailResult] = await Promise.allSettled([
+      withTimeout(sendTelegramNotification({ name, email, subject, message }), TELEGRAM_TIMEOUT_MS, 'Telegram'),
+      withTimeout(sendContactEmail({ name, email, subject, message }), EMAIL_TIMEOUT_MS, 'Email'),
+    ])
 
-    // 3. Gmail via Nodemailer
-    let emailOk = false
-    try {
-      await sendContactEmail({ name, email, subject, message })
-      emailOk = true
-    } catch (emailErr) {
-      console.error('[contact] Email FAILED:', emailErr.message)
+    const telegramOk = telegramResult.status === 'fulfilled'
+    const emailOk = emailResult.status === 'fulfilled'
+
+    if (!telegramOk) {
+      console.error('[contact] Telegram FAILED:', telegramResult.reason?.message)
+    }
+    if (!emailOk) {
+      console.error('[contact] Email FAILED:', emailResult.reason?.message)
     }
 
     const notifications = {
@@ -49,7 +47,6 @@ export async function submitContact(req, res, next) {
     }
 
     if (!telegramOk) {
-      console.error('[contact] CRITICAL: Telegram not sent')
       return res.status(502).json({
         success: false,
         message:
@@ -58,14 +55,12 @@ export async function submitContact(req, res, next) {
       })
     }
 
-    console.log('[contact] SUCCESS — telegram:', telegramOk, 'email:', emailOk, 'db:', Boolean(saved))
+    console.log('[contact] DONE — telegram:', telegramOk, 'email:', emailOk)
     console.log('[contact] ─────────────────────────────')
 
     return res.status(201).json({
       success: true,
-      message: emailOk
-        ? 'Message sent successfully! I will get back to you soon.'
-        : 'Message received! I will get back to you soon.',
+      message: 'Message sent successfully! I will get back to you soon.',
       id: saved?._id,
       notifications,
     })
