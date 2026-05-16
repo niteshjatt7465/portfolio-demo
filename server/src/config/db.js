@@ -7,8 +7,13 @@ export async function connectDB() {
     return false
   }
 
-  mongoose.set('strictQuery', true)
-  await mongoose.connect(uri)
-  console.log('[db] Connected to MongoDB')
-  return true
+  try {
+    mongoose.set('strictQuery', true)
+    await mongoose.connect(uri)
+    console.log('[db] Connected to MongoDB')
+    return true
+  } catch (err) {
+    console.error('[db] Connection failed:', err.message)
+    return false
+  }
 }

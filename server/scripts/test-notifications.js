@@ -4,25 +4,25 @@ import { sendTelegramNotification } from '../src/services/telegramService.js'
 
 const testPayload = {
   name: 'Test User',
-  email: 'test@example.com',
+  email: 'visitor@example.com',
   subject: 'Portfolio System Test',
-  message: 'If you receive this, Email + Telegram are working correctly.',
+  message: 'If you receive this on Gmail and Telegram, the system is working.',
 }
 
-console.log('Testing notifications...\n')
+console.log('Testing Nodemailer + Telegram...\n')
 
 try {
   await sendTelegramNotification(testPayload)
-  console.log('✓ Telegram notification sent')
+  console.log('✓ Telegram OK')
 } catch (err) {
-  console.error('✗ Telegram failed:', err.message)
+  console.error('✗ Telegram:', err.message)
 }
 
 try {
   await sendContactEmail(testPayload)
-  console.log('✓ Email sent via EmailJS')
+  console.log('✓ Gmail OK')
 } catch (err) {
-  console.error('✗ Email failed:', err.message)
+  console.error('✗ Gmail:', err.message)
 }
 
 process.exit(0)
