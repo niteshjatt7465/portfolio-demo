@@ -56,4 +56,7 @@ await connectDB()
 app.listen(PORT, () => {
   console.log(`[server] Running on port ${PORT}`)
   console.log('[server] Allowed origins:', allowedOrigins.join(', '))
+  console.log('[config] MongoDB:', process.env.MONGO_URI ? 'set' : 'MISSING')
+  console.log('[config] Email:', process.env.EMAIL_USER ? process.env.EMAIL_USER : 'MISSING')
+  console.log('[config] Telegram:', process.env.TELEGRAM_BOT_TOKEN ? 'set' : 'MISSING')
 })

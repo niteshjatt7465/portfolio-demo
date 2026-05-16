@@ -1,30 +1,37 @@
-import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, CheckCircle } from 'lucide-react'
+import { Send, CheckCircle, Loader2 } from 'lucide-react'
 import { SectionHeading } from '@/components/SectionHeading'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { MagneticButton } from '@/components/MagneticButton'
+import { ContactToast } from '@/components/ContactToast'
 import { SOCIAL_LINKS } from '@/constants/social'
 import { SITE } from '@/constants/site'
+import { useContactForm } from '@/hooks/useContactForm'
 import { fadeUp } from '@/animations/variants'
 
 export function Contact() {
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSubmitted(true)
-    }, 1500)
-  }
+  const {
+    form,
+    loading,
+    submitted,
+    toast,
+    updateField,
+    handleSubmit,
+    resetForm,
+    closeToast,
+  } = useContactForm()
 
   return (
     <section id="contact" className="relative px-6 py-24 md:py-32 pb-40">
-      <div className="mx-auto max-w-4xl">
+      <ContactToast
+        open={toast.open}
+        type={toast.type}
+        message={toast.message}
+        onClose={closeToast}
+      />
+
+      <motion.div className="mx-auto max-w-4xl">
         <SectionHeading
           label="Contact"
           title="Let's Build Something"
@@ -67,58 +74,134 @@ export function Contact() {
           <form
             onSubmit={handleSubmit}
             className="lg:col-span-3 glass-strong rounded-2xl p-6 md:p-8 space-y-4 neon-border"
+            noValidate
           >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs text-zinc-500">Name</label>
-                <Input placeholder="Your name" required />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs text-zinc-500">Email</label>
-                <Input type="email" placeholder="you@email.com" required />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs text-zinc-500">Subject</label>
-              <Input placeholder="Project inquiry" required />
-            </div>
-            <motion.div>
-              <label className="mb-1.5 block text-xs text-zinc-500">Message</label>
-              <Textarea placeholder="Tell me about your project..." required rows={5} />
-            </motion.div>
-
             <AnimatePresence mode="wait">
               {submitted ? (
                 <motion.div
-                  key="success"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 text-emerald-400 py-2"
+                  key="success-panel"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  className="flex flex-col items-center justify-center py-12 text-center"
                 >
-                  <CheckCircle className="h-5 w-5" />
-                  <span className="text-sm font-medium">
-                    Message sent! I&apos;ll get back to you soon.
-                  </span>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                  >
+                    <CheckCircle className="h-16 w-16 text-emerald-400 mx-auto" />
+                  </motion.div>
+                  <h3 className="mt-4 font-display text-xl font-semibold text-white">
+                    Message Sent!
+                  </h3>
+                  <p className="mt-2 text-sm text-zinc-400 max-w-xs">
+                    Thanks for reaching out. I&apos;ll respond as soon as possible.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="mt-6 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                  >
+                    Send another message
+                  </button>
                 </motion.div>
               ) : (
-                <MagneticButton
-                  key="submit"
-                  type="submit"
-                  variant="glow"
-                  className="w-full sm:w-auto"
-                  disabled={loading}
+                <motion.div
+                  key="form-fields"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-4"
                 >
-                  {loading ? 'Sending...' : (
-                    <>
-                      <Send className="h-4 w-4" /> Send Message
-                    </>
-                  )}
-                </MagneticButton>
+                  <motion.div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="contact-name" className="mb-1.5 block text-xs text-zinc-500">
+                        Name
+                      </label>
+                      <Input
+                        id="contact-name"
+                        name="name"
+                        placeholder="Your name"
+                        value={form.name}
+                        onChange={updateField('name')}
+                        required
+                        minLength={2}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="contact-email" className="mb-1.5 block text-xs text-zinc-500">
+                        Email
+                      </label>
+                      <Input
+                        id="contact-email"
+                        name="email"
+                        type="email"
+                        placeholder="you@email.com"
+                        value={form.email}
+                        onChange={updateField('email')}
+                        required
+                        disabled={loading}
+                      />
+                    </div>
+                  </motion.div>
+                  <div>
+                    <label htmlFor="contact-subject" className="mb-1.5 block text-xs text-zinc-500">
+                      Subject
+                    </label>
+                    <Input
+                      id="contact-subject"
+                      name="subject"
+                      placeholder="Project inquiry"
+                      value={form.subject}
+                      onChange={updateField('subject')}
+                      required
+                      minLength={3}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="contact-message" className="mb-1.5 block text-xs text-zinc-500">
+                      Message
+                    </label>
+                    <Textarea
+                      id="contact-message"
+                      name="message"
+                      placeholder="Tell me about your project..."
+                      value={form.message}
+                      onChange={updateField('message')}
+                      required
+                      minLength={10}
+                      rows={5}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <MagneticButton
+                    type="submit"
+                    variant="glow"
+                    className="w-full sm:w-auto min-w-[160px]"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Send Message
+                      </>
+                    )}
+                  </MagneticButton>
+                </motion.div>
               )}
             </AnimatePresence>
           </form>
         </motion.div>
-      </div>
+      </motion.div>
 
       <footer className="mt-20 text-center text-xs text-zinc-600">
         © {SITE.year} {SITE.name}. Crafted with React, Three.js & GSAP.
