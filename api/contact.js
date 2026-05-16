@@ -3,7 +3,7 @@
  * Fixes 404 when vercel.json external rewrites don't apply.
  */
 const BACKEND =
-  process.env.BACKEND_URL || 'https://portfolio-demo-gvdr.onrender.com'
+  process.env.BACKEND_URL || 'https://portfolio-demo-1-4kcp.onrender.com'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')

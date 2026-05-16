@@ -4,4 +4,4 @@
  */
 export const CONTACT_API_URL = import.meta.env.DEV
   ? '/api/contact'
-  : 'https://portfolio-demo-gvdr.onrender.com/api/contact'
+  : 'https://portfolio-demo-1-4kcp.onrender.com/api/contact'
