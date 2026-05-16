@@ -12,26 +12,29 @@ export async function submitContact(req, res, next) {
       saved = await ContactMessage.create({ name, email, subject, message })
     }
 
-    const [emailResult, telegramResult] = await Promise.allSettled([
-      sendContactEmail({ name, email, subject, message }),
-      sendTelegramNotification({ name, email, subject, message }),
-    ])
+    let telegramOk = false
+    let emailOk = false
 
-    const emailOk = emailResult.status === 'fulfilled'
-    const telegramOk = telegramResult.status === 'fulfilled'
-
-    if (!emailOk) {
-      console.error('[email]', emailResult.reason?.message)
-    }
-    if (!telegramOk) {
-      console.error('[telegram]', telegramResult.reason?.message)
+    try {
+      await sendTelegramNotification({ name, email, subject, message })
+      telegramOk = true
+    } catch (err) {
+      console.error('[telegram]', err.message)
     }
 
-    if (!emailOk && !telegramOk) {
+    try {
+      await sendContactEmail({ name, email, subject, message })
+      emailOk = true
+    } catch (err) {
+      console.error('[email]', err.message)
+    }
+
+    // Telegram is primary — succeed if Telegram OR DB saved
+    if (!telegramOk && !saved) {
       return res.status(502).json({
         success: false,
-        message: 'Could not deliver your message. Please email me directly.',
-        notifications: { email: false, telegram: false },
+        message: 'Could not deliver your message. Please try again or email me directly.',
+        notifications: { email: false, telegram: false, database: false },
       })
     }
 
