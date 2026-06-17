@@ -11,6 +11,17 @@ export interface Project {
 
 export const PROJECTS: Project[] = [
   {
+    id: 'gst-calculator',
+    title: 'GST Calculator & Invoice Generator',
+    description:
+      'A free online GST Calculator and Invoice Generator that helps users instantly calculate GST for 5%, 12%, 18%, and 28% slabs and download a professional PDF invoice — no signup required, 100% client-side.',
+    image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
+    tech: ['React 19', 'Vite', 'Tailwind CSS', 'jsPDF'],
+    github: 'https://github.com/niteshjatt7465/GST-calculator',
+    live: 'https://gst-calculator-self.vercel.app/',
+    featured: true,
+  },
+  {
     id: 'ai-study-planner',
     title: 'AI Study Planner',
     description:
